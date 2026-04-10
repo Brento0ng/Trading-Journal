@@ -232,29 +232,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 @media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr);}.charts-row{grid-template-columns:1fr;}.analytics-grid{grid-template-columns:1fr 1fr;}.psych-grid{grid-template-columns:1fr;}}
-
-/* SETTINGS */
-.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px;}
-.settings-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;}
-.settings-card-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:8px;}
-.settings-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(26,40,64,.6);}
-.settings-row:last-child{border-bottom:none;padding-bottom:0;}
-.settings-row-label{font-size:13px;color:var(--text);font-weight:500;}
-.settings-row-sub{font-size:11px;color:var(--muted);margin-top:2px;}
-.toggle{position:relative;width:42px;height:24px;flex-shrink:0;}
-.toggle input{opacity:0;width:0;height:0;}
-.toggle-slider{position:absolute;cursor:pointer;inset:0;background:var(--surface2);border:1px solid var(--border);border-radius:24px;transition:.2s;}
-.toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:2px;top:2px;background:var(--muted);border-radius:50%;transition:.2s;}
-.toggle input:checked+.toggle-slider{background:rgba(0,212,255,.15);border-color:var(--accent);}
-.toggle input:checked+.toggle-slider:before{transform:translateX(18px);background:var(--accent);}
-.color-opts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
-.color-opt{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .18s;}
-.color-opt.active{border-color:#fff;transform:scale(1.15);}
-.studies-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
-.study-btn{padding:5px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:12px;cursor:pointer;transition:all .18s;}
-.study-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.08);}
-.save-settings-btn{width:100%;margin-top:20px;}
-.profile-avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent2),var(--accent));display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:24px;color:#fff;margin-bottom:14px;}
 </style>
 </head>
 <body>
@@ -272,8 +249,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
     <div class="nav-item" onclick="nav('journal',this)"><span class="nav-icon">✏️</span> Journal</div>
     <div class="nav-label">Charts</div>
     <div class="nav-item" onclick="nav('chart',this)"><span class="nav-icon">📊</span> TradingView</div>
-    <div class="nav-label">Account</div>
-    <div class="nav-item" onclick="nav('settings',this)"><span class="nav-icon">⚙️</span> Settings</div>
   </div>
   <div class="sidebar-bottom">
     <div class="sb-status"><div class="status-dot"></div><span id="connStatus" style="font-size:11px;color:var(--muted)">Connecting…</span></div>
@@ -480,194 +455,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
   </div>
 </div>
 
-
-<!-- SETTINGS PAGE -->
-<div id="page-settings" class="page">
-  <div class="page-header">
-    <div><div class="page-title">Settings</div><div class="page-sub">Customize your TradeFlow experience</div></div>
-    <button class="btn btn-primary" onclick="saveAllSettings()">💾 Save All Settings</button>
-  </div>
-
-  <!-- Profile -->
-  <div class="settings-card" style="margin-bottom:16px">
-    <div class="settings-card-title">👤 Profile</div>
-    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
-      <div class="profile-avatar" id="profileAvatarBig">T</div>
-      <div style="flex:1">
-        <div class="form-group" style="margin-bottom:12px">
-          <div class="form-label">Your Name</div>
-          <input type="text" class="form-input" id="settingName" placeholder="e.g. Brent Lawrence" style="max-width:300px">
-        </div>
-        <div class="form-group" style="margin-bottom:0">
-          <div class="form-label">Account Balance (₱)</div>
-          <input type="number" class="form-input" id="settingBalance" placeholder="e.g. 50000" style="max-width:300px">
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="settings-grid">
-
-    <!-- TradingView Preferences -->
-    <div class="settings-card">
-      <div class="settings-card-title">📊 TradingView Preferences</div>
-
-      <div class="settings-row">
-        <div><div class="settings-row-label">Default Symbol</div><div class="settings-row-sub">Chart opens with this symbol</div></div>
-        <select class="form-input form-select" id="settingSymbol" style="max-width:140px">
-          <option value="XAUUSD">GOLD (XAUUSD)</option>
-          <option value="EURUSD">EUR/USD</option>
-          <option value="GBPUSD">GBP/USD</option>
-          <option value="USDJPY">USD/JPY</option>
-          <option value="GBPJPY">GBP/JPY</option>
-          <option value="BTCUSD">BTC/USD</option>
-          <option value="ETHUSD">ETH/USD</option>
-          <option value="NAS100">NASDAQ 100</option>
-          <option value="SP500">S&P 500</option>
-          <option value="US30">DOW JONES</option>
-        </select>
-      </div>
-
-      <div class="settings-row">
-        <div><div class="settings-row-label">Default Timeframe</div><div class="settings-row-sub">Chart opens with this timeframe</div></div>
-        <select class="form-input form-select" id="settingInterval" style="max-width:120px">
-          <option value="1">1 min</option>
-          <option value="5">5 min</option>
-          <option value="15">15 min</option>
-          <option value="30">30 min</option>
-          <option value="60">1 hour</option>
-          <option value="240">4 hour</option>
-          <option value="D">Daily</option>
-          <option value="W">Weekly</option>
-        </select>
-      </div>
-
-      <div class="settings-row">
-        <div><div class="settings-row-label">Chart Style</div><div class="settings-row-sub">Candle type</div></div>
-        <select class="form-input form-select" id="settingStyle" style="max-width:140px">
-          <option value="1">Candlestick</option>
-          <option value="8">Heikin Ashi</option>
-          <option value="2">Bar Chart</option>
-          <option value="3">Line</option>
-          <option value="9">Hollow Candles</option>
-        </select>
-      </div>
-
-      <div class="settings-row">
-        <div><div class="settings-row-label">Chart Theme</div><div class="settings-row-sub">Light or dark mode</div></div>
-        <select class="form-input form-select" id="settingTheme" style="max-width:120px">
-          <option value="dark">Dark</option>
-          <option value="light">Light</option>
-        </select>
-      </div>
-
-      <div class="settings-row">
-        <div><div class="settings-row-label">Timezone</div><div class="settings-row-sub">Your local timezone</div></div>
-        <select class="form-input form-select" id="settingTimezone" style="max-width:160px">
-          <option value="Asia/Manila">Manila (UTC+8)</option>
-          <option value="Asia/Singapore">Singapore (UTC+8)</option>
-          <option value="Asia/Tokyo">Tokyo (UTC+9)</option>
-          <option value="Europe/London">London (UTC+0)</option>
-          <option value="America/New_York">New York (UTC-5)</option>
-          <option value="UTC">UTC</option>
-        </select>
-      </div>
-
-      <div style="margin-top:14px">
-        <div class="form-label" style="margin-bottom:8px">Indicators (shown on chart)</div>
-        <div class="studies-grid" id="studiesGrid">
-          <div class="study-btn active" data-study="RSI@tv-basicstudies" onclick="toggleStudy(this)">RSI</div>
-          <div class="study-btn active" data-study="MACD@tv-basicstudies" onclick="toggleStudy(this)">MACD</div>
-          <div class="study-btn" data-study="MASimple@tv-basicstudies" onclick="toggleStudy(this)">MA</div>
-          <div class="study-btn" data-study="EMA@tv-basicstudies" onclick="toggleStudy(this)">EMA</div>
-          <div class="study-btn" data-study="BB@tv-basicstudies" onclick="toggleStudy(this)">Bollinger Bands</div>
-          <div class="study-btn" data-study="StochasticRSI@tv-basicstudies" onclick="toggleStudy(this)">Stoch RSI</div>
-          <div class="study-btn" data-study="AwesomeOscillator@tv-basicstudies" onclick="toggleStudy(this)">AO</div>
-          <div class="study-btn" data-study="ATR@tv-basicstudies" onclick="toggleStudy(this)">ATR</div>
-          <div class="study-btn" data-study="VWAP@tv-basicstudies" onclick="toggleStudy(this)">VWAP</div>
-          <div class="study-btn" data-study="IchimokuCloud@tv-basicstudies" onclick="toggleStudy(this)">Ichimoku</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- App Preferences -->
-    <div class="settings-card">
-      <div class="settings-card-title">🎨 App Preferences</div>
-
-      <div class="settings-row">
-        <div><div class="settings-row-label">Currency Symbol</div><div class="settings-row-sub">Shown in P&L figures</div></div>
-        <select class="form-input form-select" id="settingCurrency" style="max-width:110px">
-          <option value="₱">₱ PHP</option>
-          <option value="$">$ USD</option>
-          <option value="€">€ EUR</option>
-          <option value="£">£ GBP</option>
-          <option value="¥">¥ JPY</option>
-        </select>
-      </div>
-
-      <div class="settings-row">
-        <div><div class="settings-row-label">Accent Color</div><div class="settings-row-sub">Main highlight color</div></div>
-        <div class="color-opts" id="accentOpts">
-          <div class="color-opt active" style="background:#00d4ff" data-color="#00d4ff" onclick="pickAccent(this)" title="Cyan"></div>
-          <div class="color-opt" style="background:#00c853" data-color="#00c853" onclick="pickAccent(this)" title="Green"></div>
-          <div class="color-opt" style="background:#7c3aed" data-color="#7c3aed" onclick="pickAccent(this)" title="Purple"></div>
-          <div class="color-opt" style="background:#ff6d00" data-color="#ff6d00" onclick="pickAccent(this)" title="Orange"></div>
-          <div class="color-opt" style="background:#ffc400" data-color="#ffc400" onclick="pickAccent(this)" title="Yellow"></div>
-          <div class="color-opt" style="background:#ff1744" data-color="#ff1744" onclick="pickAccent(this)" title="Red"></div>
-        </div>
-      </div>
-
-      <div class="settings-row">
-        <div><div class="settings-row-label">Show Chart on Dashboard</div><div class="settings-row-sub">Mini chart on home page</div></div>
-        <label class="toggle"><input type="checkbox" id="settingShowChart" checked><span class="toggle-slider"></span></label>
-      </div>
-
-      <div class="settings-row">
-        <div><div class="settings-row-label">Show Psychology Tips</div><div class="settings-row-sub">AI insights on dashboard</div></div>
-        <label class="toggle"><input type="checkbox" id="settingShowPsych" checked><span class="toggle-slider"></span></label>
-      </div>
-
-      <div class="settings-row">
-        <div><div class="settings-row-label">Default Trade Side</div><div class="settings-row-sub">Pre-select when logging</div></div>
-        <select class="form-input form-select" id="settingDefaultSide" style="max-width:110px">
-          <option value="Long">Long</option>
-          <option value="Short">Short</option>
-        </select>
-      </div>
-
-      <div class="settings-row">
-        <div><div class="settings-row-label">Default Session</div><div class="settings-row-sub">Pre-select when logging</div></div>
-        <select class="form-input form-select" id="settingDefaultSession" style="max-width:130px">
-          <option value="Asia">Asia</option>
-          <option value="London">London</option>
-          <option value="New York">New York</option>
-          <option value="Overlap">Overlap</option>
-        </select>
-      </div>
-
-      <div class="settings-row">
-        <div><div class="settings-row-label">Daily Trade Limit</div><div class="settings-row-sub">Warn when exceeded</div></div>
-        <input type="number" class="form-input" id="settingTradeLimit" placeholder="e.g. 3" style="max-width:80px" min="1" max="20">
-      </div>
-
-    </div>
-  </div>
-
-  <!-- Danger Zone -->
-  <div class="settings-card" style="border-color:rgba(255,23,68,.2)">
-    <div class="settings-card-title" style="color:var(--red)">⚠️ Danger Zone</div>
-    <div class="settings-row">
-      <div><div class="settings-row-label">Export All Trades</div><div class="settings-row-sub">Download your trade history as CSV</div></div>
-      <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📥 Export CSV</button>
-    </div>
-    <div class="settings-row">
-      <div><div class="settings-row-label">Clear All Settings</div><div class="settings-row-sub">Reset to default preferences</div></div>
-      <button class="btn btn-danger" onclick="clearSettings()">Reset</button>
-    </div>
-  </div>
-
-</div>
-
 </main>
 
 <!-- TRADE MODAL -->
@@ -815,7 +602,6 @@ function nav(id, el){
   if(id==='psychology') loadPsych();
   if(id==='journal')    loadJournal();
   if(id==='chart')      loadChart();
-  if(id==='settings')   loadSettingsPage();
 }
 
 // ══════════════════════════════════════════════
@@ -1397,205 +1183,78 @@ document.getElementById('confBox').addEventListener('click',function(e){if(e.tar
 
 
 // ══════════════════════════════════════════════
-//  SETTINGS — saved to localStorage
-// ══════════════════════════════════════════════
-const SETTINGS_KEY = 'tf_settings_v1';
-
-function defaultSettings() {
-  return {
-    name: 'Trader',
-    balance: '',
-    symbol: 'XAUUSD',
-    interval: '30',
-    style: '1',
-    theme: 'dark',
-    timezone: 'Asia/Manila',
-    studies: ['RSI@tv-basicstudies','MACD@tv-basicstudies'],
-    currency: '₱',
-    accent: '#00d4ff',
-    showChart: true,
-    showPsych: true,
-    defaultSide: 'Long',
-    defaultSession: 'London',
-    tradeLimit: ''
-  };
-}
-
-function loadSettings() {
-  try { return { ...defaultSettings(), ...JSON.parse(localStorage.getItem(SETTINGS_KEY)) }; }
-  catch { return defaultSettings(); }
-}
-
-function saveSettings(s) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
-
-function applyAccentColor(color) {
-  document.documentElement.style.setProperty('--accent', color);
-}
-
-function initSettings() {
-  const s = loadSettings();
-  applyAccentColor(s.accent);
-  // pre-fill trade modal defaults
-  const sideEl = document.getElementById('tSide');
-  const sessEl = document.getElementById('tSess');
-  if(sideEl) sideEl.value = s.defaultSide;
-  if(sessEl) sessEl.value = s.defaultSession;
-  // update avatar
-  const av = document.getElementById('profileAvatarBig');
-  if(av) av.textContent = (s.name||'T').charAt(0).toUpperCase();
-}
-
-function loadSettingsPage() {
-  const s = loadSettings();
-  document.getElementById('settingName').value         = s.name || '';
-  document.getElementById('settingBalance').value      = s.balance || '';
-  document.getElementById('settingSymbol').value       = s.symbol;
-  document.getElementById('settingInterval').value     = s.interval;
-  document.getElementById('settingStyle').value        = s.style;
-  document.getElementById('settingTheme').value        = s.theme;
-  document.getElementById('settingTimezone').value     = s.timezone;
-  document.getElementById('settingCurrency').value     = s.currency;
-  document.getElementById('settingShowChart').checked  = s.showChart;
-  document.getElementById('settingShowPsych').checked  = s.showPsych;
-  document.getElementById('settingDefaultSide').value  = s.defaultSide;
-  document.getElementById('settingDefaultSession').value = s.defaultSession;
-  document.getElementById('settingTradeLimit').value   = s.tradeLimit || '';
-
-  // accent color
-  document.querySelectorAll('.color-opt').forEach(el => {
-    el.classList.toggle('active', el.dataset.color === s.accent);
-  });
-
-  // studies
-  document.querySelectorAll('.study-btn').forEach(el => {
-    el.classList.toggle('active', s.studies.includes(el.dataset.study));
-  });
-
-  // avatar
-  const av = document.getElementById('profileAvatarBig');
-  if(av) av.textContent = (s.name||'T').charAt(0).toUpperCase();
-}
-
-function toggleStudy(el) { el.classList.toggle('active'); }
-
-function pickAccent(el) {
-  document.querySelectorAll('.color-opt').forEach(e => e.classList.remove('active'));
-  el.classList.add('active');
-  applyAccentColor(el.dataset.color);
-}
-
-function saveAllSettings() {
-  const studies = Array.from(document.querySelectorAll('.study-btn.active')).map(e => e.dataset.study);
-  const accent  = (document.querySelector('.color-opt.active') || {}).dataset || {};
-
-  const s = {
-    name:           document.getElementById('settingName').value.trim() || 'Trader',
-    balance:        document.getElementById('settingBalance').value,
-    symbol:         document.getElementById('settingSymbol').value,
-    interval:       document.getElementById('settingInterval').value,
-    style:          document.getElementById('settingStyle').value,
-    theme:          document.getElementById('settingTheme').value,
-    timezone:       document.getElementById('settingTimezone').value,
-    studies:        studies,
-    currency:       document.getElementById('settingCurrency').value,
-    accent:         accent.color || '#00d4ff',
-    showChart:      document.getElementById('settingShowChart').checked,
-    showPsych:      document.getElementById('settingShowPsych').checked,
-    defaultSide:    document.getElementById('settingDefaultSide').value,
-    defaultSession: document.getElementById('settingDefaultSession').value,
-    tradeLimit:     document.getElementById('settingTradeLimit').value,
-  };
-
-  saveSettings(s);
-  applyAccentColor(s.accent);
-
-  // Update avatar in sidebar
-  const av = document.getElementById('profileAvatarBig');
-  if(av) av.textContent = s.name.charAt(0).toUpperCase();
-  document.querySelector('.save-badge').textContent = allTrades.length + ' trades · ' + s.name;
-
-  // Update chart dropdowns to match saved prefs
-  document.getElementById('tvSymbol').value   = s.symbol;
-  document.getElementById('tvInterval').value = s.interval;
-
-  toast('✓ Settings saved!');
-}
-
-function clearSettings() {
-  localStorage.removeItem(SETTINGS_KEY);
-  loadSettingsPage();
-  applyAccentColor('#00d4ff');
-  toast('Settings reset to defaults');
-}
-
-function exportCSV() {
-  if(!allTrades.length){ toast('No trades to export','err'); return; }
-  const headers = ['Date','Instrument','Side','Session','Entry','Exit','SL','Size','PnL','Result','R','Emotion','Notes'];
-  const rows = allTrades.map(t => [
-    t.date, t.instrument, t.side, t.session||'',
-    t.entry, t.exit, t.sl||'', t.size||'',
-    t.pnl, t.result, t.r||'',
-    (t.emotion||'').replace(/,/g,';'), (t.notes||'').replace(/,/g,';').replace(/
-/g,' ')
-  ]);
-  const csv = [headers, ...rows].map(r => r.join(',')).join('
-');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = 'tradeflow-trades.csv'; a.click();
-  URL.revokeObjectURL(url);
-  toast('✓ Exported ' + allTrades.length + ' trades!');
-}
-
-// ══════════════════════════════════════════════
 //  TRADINGVIEW CHART
 // ══════════════════════════════════════════════
 let tvWidget = null;
 
 function loadChart() {
-  const s        = loadSettings();
-  const symbol   = document.getElementById('tvSymbol').value   || s.symbol;
-  const interval = document.getElementById('tvInterval').value || s.interval;
+  const symbol = document.getElementById('tvSymbol').value;
+  const interval = document.getElementById('tvInterval').value;
   const container = document.getElementById('tvContainer');
+
+  // Clear previous chart
   container.innerHTML = '';
 
-  const config = {
-    container_id:       'tvContainer',
-    symbol:             symbol,
-    interval:           interval,
-    timezone:           s.timezone,
-    theme:              s.theme,
-    style:              s.style,
-    locale:             'en',
-    toolbar_bg:         '#0c1219',
-    enable_publishing:  false,
-    hide_side_toolbar:  false,
-    allow_symbol_change: true,
-    studies:            s.studies,
-    width:              '100%',
-    height:             600,
-    backgroundColor:    '#070a0f',
-    gridColor:          '#1a2840',
+  // Load TradingView widget script dynamically
+  const script = document.createElement('script');
+  script.src = 'https://s3.tradingview.com/tv.js';
+  script.onload = function() {
+    tvWidget = new TradingView.widget({
+      container_id: 'tvContainer',
+      symbol: symbol,
+      interval: interval,
+      timezone: 'Asia/Manila',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      toolbar_bg: '#0c1219',
+      enable_publishing: false,
+      hide_side_toolbar: false,
+      allow_symbol_change: true,
+      studies: ['RSI@tv-basicstudies', 'MACD@tv-basicstudies'],
+      width: '100%',
+      height: 600,
+      backgroundColor: '#070a0f',
+      gridColor: '#1a2840',
+    });
   };
+  // If script already loaded
+  if(window.TradingView) {
+    tvWidget = new TradingView.widget({
+      container_id: 'tvContainer',
+      symbol: symbol,
+      interval: interval,
+      timezone: 'Asia/Manila',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      toolbar_bg: '#0c1219',
+      enable_publishing: false,
+      hide_side_toolbar: false,
+      allow_symbol_change: true,
+      studies: ['RSI@tv-basicstudies', 'MACD@tv-basicstudies'],
+      width: '100%',
+      height: 600,
+      backgroundColor: '#070a0f',
+      gridColor: '#1a2840',
+    });
+  } else {
+    document.head.appendChild(script);
+  }
 
+  // Update display labels
   const symLabels = {
     'XAUUSD':'GOLD','EURUSD':'EUR/USD','GBPUSD':'GBP/USD',
     'USDJPY':'USD/JPY','GBPJPY':'GBP/JPY','BTCUSD':'BTC/USD',
     'ETHUSD':'ETH/USD','NAS100':'NASDAQ','SP500':'S&P 500','US30':'DOW JONES'
   };
-  const tfLabels = {'1':'1m','5':'5m','15':'15m','30':'30m','60':'1H','240':'4H','D':'Daily','W':'Weekly'};
+  const tfLabels = {
+    '1':'1m','5':'5m','15':'15m','30':'30m','60':'1H','240':'4H','D':'Daily','W':'Weekly'
+  };
   document.getElementById('tvSymbolDisplay').textContent = symLabels[symbol]||symbol;
-  document.getElementById('tvTfDisplay').textContent     = tfLabels[interval]||interval;
+  document.getElementById('tvTfDisplay').textContent = tfLabels[interval]||interval;
 
-  if(window.TradingView) {
-    tvWidget = new TradingView.widget(config);
-  } else {
-    const script = document.createElement('script');
-    script.src   = 'https://s3.tradingview.com/tv.js';
-    script.onload = () => { tvWidget = new TradingView.widget(config); };
-    document.head.appendChild(script);
-  }
+  // Load stats for this symbol
   loadChartStats();
 }
 
@@ -1603,17 +1262,16 @@ function updateChart() { loadChart(); }
 
 async function loadChartStats() {
   try {
-    const s     = loadSettings();
     const stats = await api('GET', '/stats');
     document.getElementById('tvTradeCount').textContent = stats.total || 0;
-    const pnl = stats.netPnl || 0;
-    document.getElementById('tvNetPnl').textContent = (pnl>=0?'+':'-') + s.currency + Math.abs(pnl).toLocaleString();
-    document.getElementById('tvNetPnl').className   = 'stat-value ' + (pnl>=0?'pp':'pn');
+    document.getElementById('tvNetPnl').textContent = stats.netPnl >= 0
+      ? '+₱' + Math.abs(stats.netPnl).toLocaleString()
+      : '-₱' + Math.abs(stats.netPnl).toLocaleString();
+    document.getElementById('tvNetPnl').className = 'stat-value ' + (stats.netPnl >= 0 ? 'pp' : 'pn');
   } catch(e) {}
 }
 
 // ── INIT ──
-initSettings();
 checkConn();
 loadDash();
 </script>
