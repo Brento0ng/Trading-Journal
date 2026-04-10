@@ -1,106 +1,104 @@
+require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
-const { v4: uuidv4 } = require('uuid');
-const Datastore = require('nedb-promises');
+const cors    = require('cors');
+const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
-const fs = require('fs');
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3001;
 
-// ── DB setup ──
-const dbDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir);
-
-const tradesDB  = Datastore.create({ filename: path.join(dbDir, 'trades.db'),  autoload: true });
-const journalDB = Datastore.create({ filename: path.join(dbDir, 'journal.db'), autoload: true });
+// ── Supabase client ──
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
 app.use(cors());
 app.use(express.json());
-
-// Serve frontend static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ════════════════════════════════
-//  TRADES API
-// ════════════════════════════════
+// ── keep-alive ping (used by UptimeRobot) ──
+app.get('/ping', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
-// GET all trades (with optional month filter)
+// ══════════════════════════════════════════════
+//  SUPABASE KEEP-ALIVE
+//  Pings the database every 4 days automatically
+//  so the free tier NEVER pauses — data stays
+//  permanent forever with zero manual work
+// ══════════════════════════════════════════════
+const FOUR_DAYS_MS = 4 * 24 * 60 * 60 * 1000;
+
+async function keepSupabaseAlive() {
+  try {
+    const { data, error } = await supabase.from('trades').select('id').limit(1);
+    const status = error
+      ? 'error: ' + error.message
+      : 'ok — ' + (data ? data.length : 0) + ' row(s) checked';
+    console.log(`[${new Date().toISOString()}] Supabase keep-alive: ${status}`);
+  } catch (e) {
+    console.log(`[${new Date().toISOString()}] Supabase keep-alive failed: ${e.message}`);
+  }
+}
+
+// Run once immediately on startup, then every 4 days
+keepSupabaseAlive();
+setInterval(keepSupabaseAlive, FOUR_DAYS_MS);
+
+// ════════════════════════════════
+//  TRADES
+// ════════════════════════════════
 app.get('/api/trades', async (req, res) => {
   try {
-    const { month } = req.query; // e.g. "2025-04"
-    let query = {};
-    if (month) query.date = new RegExp('^' + month);
-    const trades = await tradesDB.find(query).sort({ date: -1 });
-    res.json(trades);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+    let query = supabase.from('trades').select('*').order('date', { ascending: false });
+    if (req.query.month) query = query.like('date', req.query.month + '%');
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET single trade
-app.get('/api/trades/:id', async (req, res) => {
-  try {
-    const trade = await tradesDB.findOne({ _id: req.params.id });
-    if (!trade) return res.status(404).json({ error: 'Not found' });
-    res.json(trade);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// POST create trade
 app.post('/api/trades', async (req, res) => {
   try {
-    const trade = {
-      _id: uuidv4(),
-      ...req.body,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    const saved = await tradesDB.insert(trade);
-    res.status(201).json(saved);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+    const { data, error } = await supabase.from('trades').insert([req.body]).select().single();
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// PUT update trade
 app.put('/api/trades/:id', async (req, res) => {
   try {
-    const update = { ...req.body, updatedAt: new Date().toISOString() };
-    delete update._id;
-    await tradesDB.update({ _id: req.params.id }, { $set: update });
-    const updated = await tradesDB.findOne({ _id: req.params.id });
-    res.json(updated);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+    const { data, error } = await supabase.from('trades').update(req.body).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// DELETE trade
 app.delete('/api/trades/:id', async (req, res) => {
   try {
-    await tradesDB.remove({ _id: req.params.id });
+    const { error } = await supabase.from('trades').delete().eq('id', req.params.id);
+    if (error) throw error;
     res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET calendar data — daily P&L aggregated for a month
+// ════════════════════════════════
+//  CALENDAR
+// ════════════════════════════════
 app.get('/api/calendar/:year/:month', async (req, res) => {
   try {
     const { year, month } = req.params;
     const prefix = `${year}-${month.padStart(2,'0')}`;
-    const trades = await tradesDB.find({ date: new RegExp('^' + prefix) });
+    const { data: trades, error } = await supabase
+      .from('trades').select('*').like('date', prefix + '%');
+    if (error) throw error;
 
     const daily = {};
     trades.forEach(t => {
       const d = t.date;
-      if (!daily[d]) daily[d] = { pnl: 0, trades: 0, wins: 0, losses: 0, be: 0, instruments: [] };
+      if (!daily[d]) daily[d] = { pnl:0, trades:0, wins:0, losses:0, be:0, rTotal:0, instruments:[] };
       daily[d].pnl    += (t.pnl || 0);
       daily[d].trades += 1;
+      daily[d].rTotal += (t.r   || 0);
       if (t.result === 'Win')       daily[d].wins++;
       if (t.result === 'Loss')      daily[d].losses++;
       if (t.result === 'Breakeven') daily[d].be++;
@@ -108,43 +106,43 @@ app.get('/api/calendar/:year/:month', async (req, res) => {
         daily[d].instruments.push(t.instrument);
     });
 
-    // Monthly summary
-    const allPnl  = Object.values(daily).reduce((s,d)=>s+d.pnl, 0);
-    const tradeDays = Object.keys(daily).length;
+    const allPnl      = Object.values(daily).reduce((s,d) => s + d.pnl, 0);
+    const tradeDays   = Object.keys(daily).length;
     const totalTrades = trades.length;
-    const wins  = trades.filter(t=>t.result==='Win').length;
-    const losses= trades.filter(t=>t.result==='Loss').length;
+    const wins        = trades.filter(t => t.result === 'Win').length;
+    const losses      = trades.filter(t => t.result === 'Loss').length;
 
     res.json({ daily, summary: { pnl: allPnl, tradeDays, totalTrades, wins, losses } });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET stats summary (dashboard)
+// ════════════════════════════════
+//  STATS
+// ════════════════════════════════
 app.get('/api/stats', async (req, res) => {
   try {
-    const trades = await tradesDB.find({}).sort({ date: 1 });
-    const now = new Date();
-    const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const { data: trades, error } = await supabase
+      .from('trades').select('*').order('date', { ascending: true });
+    if (error) throw error;
 
-    const wins   = trades.filter(t=>t.result==='Win');
-    const losses = trades.filter(t=>t.result==='Loss');
-    const total  = trades.length;
-    const winRate = total ? (wins.length / total * 100).toFixed(1) : 0;
-    const netPnl  = trades.reduce((s,t)=>s+(t.pnl||0), 0);
-    const grossWin  = wins.reduce((s,t)=>s+(t.pnl||0), 0);
-    const grossLoss = Math.abs(losses.reduce((s,t)=>s+(t.pnl||0), 0));
-    const pf = grossLoss > 0 ? (grossWin / grossLoss).toFixed(2) : wins.length > 0 ? '∞' : null;
-    const rTrades = trades.filter(t=>t.r);
-    const avgR = rTrades.length ? (rTrades.reduce((s,t)=>s+(t.r||0),0)/rTrades.length).toFixed(2) : null;
-    const thisMonthCount = trades.filter(t=>t.date&&t.date.startsWith(thisMonth)).length;
-    const avgWin  = wins.length   ? grossWin / wins.length : null;
-    const avgLoss = losses.length ? grossLoss / losses.length : null;
-    const bestTrade = trades.length ? Math.max(...trades.map(t=>t.pnl||0)) : null;
-    const worstTrade= trades.length ? Math.min(...trades.map(t=>t.pnl||0)) : null;
+    const now        = new Date();
+    const thisMonth  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const wins       = trades.filter(t => t.result === 'Win');
+    const losses     = trades.filter(t => t.result === 'Loss');
+    const total      = trades.length;
+    const winRate    = total ? (wins.length / total * 100).toFixed(1) : 0;
+    const netPnl     = trades.reduce((s,t) => s + (t.pnl||0), 0);
+    const grossWin   = wins.reduce((s,t) => s + (t.pnl||0), 0);
+    const grossLoss  = Math.abs(losses.reduce((s,t) => s + (t.pnl||0), 0));
+    const pf         = grossLoss > 0 ? (grossWin/grossLoss).toFixed(2) : wins.length > 0 ? '∞' : null;
+    const rTrades    = trades.filter(t => t.r);
+    const avgR       = rTrades.length ? (rTrades.reduce((s,t) => s+(t.r||0),0)/rTrades.length).toFixed(2) : null;
+    const avgWin     = wins.length   ? grossWin  / wins.length   : null;
+    const avgLoss    = losses.length ? grossLoss / losses.length : null;
+    const bestTrade  = trades.length ? Math.max(...trades.map(t => t.pnl||0)) : null;
+    const worstTrade = trades.length ? Math.min(...trades.map(t => t.pnl||0)) : null;
+    const thisMonthCount = trades.filter(t => t.date && t.date.startsWith(thisMonth)).length;
 
-    // Equity curve points
     let cum = 0;
     const equityCurve = trades.map(t => {
       cum += (t.pnl || 0);
@@ -153,63 +151,56 @@ app.get('/api/stats', async (req, res) => {
 
     res.json({
       total, winRate, netPnl, wins: wins.length, losses: losses.length,
-      be: trades.filter(t=>t.result==='Breakeven').length,
-      pf, avgR, thisMonthCount, avgWin, avgLoss, bestTrade, worstTrade, equityCurve
+      be: trades.filter(t => t.result === 'Breakeven').length,
+      pf, avgR, avgWin, avgLoss, bestTrade, worstTrade,
+      thisMonthCount, equityCurve
     });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ════════════════════════════════
-//  JOURNAL API
+//  JOURNAL
 // ════════════════════════════════
-
 app.get('/api/journal', async (req, res) => {
   try {
-    const entries = await journalDB.find({}).sort({ date: -1 });
-    res.json(entries);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+    const { data, error } = await supabase.from('journal').select('*').order('date', { ascending: false });
+    if (error) throw error;
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/journal', async (req, res) => {
   try {
-    const entry = { _id: uuidv4(), ...req.body, createdAt: new Date().toISOString() };
-    const saved = await journalDB.insert(entry);
-    res.status(201).json(saved);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+    const payload = { ...req.body, tags: req.body.tags || [] };
+    const { data, error } = await supabase.from('journal').insert([payload]).select().single();
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/journal/:id', async (req, res) => {
   try {
-    const update = { ...req.body };
-    delete update._id;
-    await journalDB.update({ _id: req.params.id }, { $set: update });
-    const updated = await journalDB.findOne({ _id: req.params.id });
-    res.json(updated);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+    const { data, error } = await supabase.from('journal').update(req.body).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/journal/:id', async (req, res) => {
   try {
-    await journalDB.remove({ _id: req.params.id });
+    const { error } = await supabase.from('journal').delete().eq('id', req.params.id);
+    if (error) throw error;
     res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Catch-all → serve index.html (SPA routing)
+// Catch-all → SPA
 app.get('/{*path}', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 TradeFlow server running on http://localhost:${PORT}`);
+  console.log(`🚀 TradeFlow running on http://localhost:${PORT}`);
+  console.log(`📦 Supabase: ${process.env.SUPABASE_URL ? '✓ connected' : '✗ SUPABASE_URL missing'}`);
+  console.log(`🔒 Data keep-alive: pinging Supabase every 4 days automatically`);
 });

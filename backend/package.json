@@ -1,17 +1,17 @@
 {
   "name": "tradeflow-backend",
-  "version": "1.0.0",
-  "description": "TradeFlow Trading Journal Backend",
+  "version": "2.0.0",
+  "description": "TradeFlow Trading Journal - Supabase backend",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
     "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "nedb-promises": "^6.2.1",
-    "uuid": "^9.0.0"
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2"
   },
   "engines": {
     "node": ">=16.0.0"
