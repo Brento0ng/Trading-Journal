@@ -247,6 +247,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
     <div class="nav-item" onclick="nav('analytics',this)"><span class="nav-icon">📈</span> Analytics</div>
     <div class="nav-item" onclick="nav('psychology',this)"><span class="nav-icon">🧠</span> Psychology</div>
     <div class="nav-item" onclick="nav('journal',this)"><span class="nav-icon">✏️</span> Journal</div>
+    <div class="nav-label">Charts</div>
+    <div class="nav-item" onclick="nav('chart',this)"><span class="nav-icon">📊</span> TradingView</div>
   </div>
   <div class="sidebar-bottom">
     <div class="sb-status"><div class="status-dot"></div><span id="connStatus" style="font-size:11px;color:var(--muted)">Connecting…</span></div>
@@ -412,6 +414,47 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
   <div class="journal-list" id="jList"></div>
 </div>
 
+<!-- TRADINGVIEW CHART -->
+<div id="page-chart" class="page">
+  <div class="page-header">
+    <div><div class="page-title">TradingView Chart</div><div class="page-sub">Live chart — select any symbol and timeframe</div></div>
+    <div class="hrow">
+      <select id="tvSymbol" class="form-input form-select" style="max-width:160px" onchange="updateChart()">
+        <option value="XAUUSD">GOLD (XAUUSD)</option>
+        <option value="EURUSD">EUR/USD</option>
+        <option value="GBPUSD">GBP/USD</option>
+        <option value="USDJPY">USD/JPY</option>
+        <option value="GBPJPY">GBP/JPY</option>
+        <option value="BTCUSD">BTC/USD</option>
+        <option value="ETHUSD">ETH/USD</option>
+        <option value="NAS100">NASDAQ 100</option>
+        <option value="SP500">S&P 500</option>
+        <option value="US30">DOW JONES</option>
+      </select>
+      <select id="tvInterval" class="form-input form-select" style="max-width:110px" onchange="updateChart()">
+        <option value="1">1 min</option>
+        <option value="5">5 min</option>
+        <option value="15">15 min</option>
+        <option value="30" selected>30 min</option>
+        <option value="60">1 hour</option>
+        <option value="240">4 hour</option>
+        <option value="D">Daily</option>
+        <option value="W">Weekly</option>
+      </select>
+      <button class="btn btn-primary" onclick="openTradeModal()">+ Log Trade</button>
+    </div>
+  </div>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;height:600px;">
+    <div id="tvContainer" style="height:100%"></div>
+  </div>
+  <div style="margin-top:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+    <div class="stat-card"><div class="stat-label">Symbol</div><div class="stat-value" style="font-size:18px" id="tvSymbolDisplay">GOLD</div></div>
+    <div class="stat-card"><div class="stat-label">Timeframe</div><div class="stat-value" style="font-size:18px" id="tvTfDisplay">30m</div></div>
+    <div class="stat-card g"><div class="stat-label">Total Trades</div><div class="stat-value" id="tvTradeCount">0</div></div>
+    <div class="stat-card"><div class="stat-label">Net P&L</div><div class="stat-value" id="tvNetPnl">₱0</div></div>
+  </div>
+</div>
+
 </main>
 
 <!-- TRADE MODAL -->
@@ -558,6 +601,7 @@ function nav(id, el){
   if(id==='analytics')  loadAnalytics();
   if(id==='psychology') loadPsych();
   if(id==='journal')    loadJournal();
+  if(id==='chart')      loadChart();
 }
 
 // ══════════════════════════════════════════════
@@ -1136,6 +1180,96 @@ document.querySelectorAll('.modal-overlay').forEach(o=>{
   });
 });
 document.getElementById('confBox').addEventListener('click',function(e){if(e.target===this)closeConf();});
+
+
+// ══════════════════════════════════════════════
+//  TRADINGVIEW CHART
+// ══════════════════════════════════════════════
+let tvWidget = null;
+
+function loadChart() {
+  const symbol = document.getElementById('tvSymbol').value;
+  const interval = document.getElementById('tvInterval').value;
+  const container = document.getElementById('tvContainer');
+
+  // Clear previous chart
+  container.innerHTML = '';
+
+  // Load TradingView widget script dynamically
+  const script = document.createElement('script');
+  script.src = 'https://s3.tradingview.com/tv.js';
+  script.onload = function() {
+    tvWidget = new TradingView.widget({
+      container_id: 'tvContainer',
+      symbol: symbol,
+      interval: interval,
+      timezone: 'Asia/Manila',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      toolbar_bg: '#0c1219',
+      enable_publishing: false,
+      hide_side_toolbar: false,
+      allow_symbol_change: true,
+      studies: ['RSI@tv-basicstudies', 'MACD@tv-basicstudies'],
+      width: '100%',
+      height: 600,
+      backgroundColor: '#070a0f',
+      gridColor: '#1a2840',
+    });
+  };
+  // If script already loaded
+  if(window.TradingView) {
+    tvWidget = new TradingView.widget({
+      container_id: 'tvContainer',
+      symbol: symbol,
+      interval: interval,
+      timezone: 'Asia/Manila',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      toolbar_bg: '#0c1219',
+      enable_publishing: false,
+      hide_side_toolbar: false,
+      allow_symbol_change: true,
+      studies: ['RSI@tv-basicstudies', 'MACD@tv-basicstudies'],
+      width: '100%',
+      height: 600,
+      backgroundColor: '#070a0f',
+      gridColor: '#1a2840',
+    });
+  } else {
+    document.head.appendChild(script);
+  }
+
+  // Update display labels
+  const symLabels = {
+    'XAUUSD':'GOLD','EURUSD':'EUR/USD','GBPUSD':'GBP/USD',
+    'USDJPY':'USD/JPY','GBPJPY':'GBP/JPY','BTCUSD':'BTC/USD',
+    'ETHUSD':'ETH/USD','NAS100':'NASDAQ','SP500':'S&P 500','US30':'DOW JONES'
+  };
+  const tfLabels = {
+    '1':'1m','5':'5m','15':'15m','30':'30m','60':'1H','240':'4H','D':'Daily','W':'Weekly'
+  };
+  document.getElementById('tvSymbolDisplay').textContent = symLabels[symbol]||symbol;
+  document.getElementById('tvTfDisplay').textContent = tfLabels[interval]||interval;
+
+  // Load stats for this symbol
+  loadChartStats();
+}
+
+function updateChart() { loadChart(); }
+
+async function loadChartStats() {
+  try {
+    const stats = await api('GET', '/stats');
+    document.getElementById('tvTradeCount').textContent = stats.total || 0;
+    document.getElementById('tvNetPnl').textContent = stats.netPnl >= 0
+      ? '+₱' + Math.abs(stats.netPnl).toLocaleString()
+      : '-₱' + Math.abs(stats.netPnl).toLocaleString();
+    document.getElementById('tvNetPnl').className = 'stat-value ' + (stats.netPnl >= 0 ? 'pp' : 'pn');
+  } catch(e) {}
+}
 
 // ── INIT ──
 checkConn();
