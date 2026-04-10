@@ -7,40 +7,81 @@ const path = require('path');
 const app  = express();
 const PORT = process.env.PORT || 3001;
 
+// ── Validate environment variables on startup ──
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error('❌ MISSING ENV VARS:');
+  console.error('   SUPABASE_URL:', SUPABASE_URL ? '✓ set' : '✗ MISSING');
+  console.error('   SUPABASE_KEY:', SUPABASE_KEY ? '✓ set' : '✗ MISSING');
+  console.error('   Add these in Render → Environment tab');
+}
+
 // ── Supabase client ──
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
+  SUPABASE_URL || 'missing',
+  SUPABASE_KEY || 'missing',
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
 );
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ── keep-alive ping (used by UptimeRobot) ──
-app.get('/ping', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+// ── Health check — shows if everything is working ──
+app.get('/ping', async (req, res) => {
+  let dbStatus = 'unknown';
+  try {
+    const { data, error } = await supabase.from('trades').select('id').limit(1);
+    dbStatus = error ? 'error: ' + error.message : 'connected';
+  } catch(e) {
+    dbStatus = 'failed: ' + e.message;
+  }
+  res.json({
+    ok: true,
+    time: new Date().toISOString(),
+    supabase_url: SUPABASE_URL ? SUPABASE_URL.substring(0,30)+'...' : 'MISSING',
+    supabase_key: SUPABASE_KEY ? SUPABASE_KEY.substring(0,15)+'...' : 'MISSING',
+    database: dbStatus
+  });
+});
 
-// ══════════════════════════════════════════════
-//  SUPABASE KEEP-ALIVE
-//  Pings the database every 4 days automatically
-//  so the free tier NEVER pauses — data stays
-//  permanent forever with zero manual work
-// ══════════════════════════════════════════════
+// ── Debug endpoint — check exactly what's wrong ──
+app.get('/api/debug', async (req, res) => {
+  const results = {};
+  try {
+    const { data, error } = await supabase.from('trades').select('count').limit(1);
+    results.trades_table = error ? 'ERROR: ' + error.message : 'OK';
+  } catch(e) { results.trades_table = 'EXCEPTION: ' + e.message; }
+  try {
+    const { data, error } = await supabase.from('journal').select('count').limit(1);
+    results.journal_table = error ? 'ERROR: ' + error.message : 'OK';
+  } catch(e) { results.journal_table = 'EXCEPTION: ' + e.message; }
+  res.json({
+    env: {
+      SUPABASE_URL: SUPABASE_URL ? '✓ ' + SUPABASE_URL : '✗ MISSING',
+      SUPABASE_KEY: SUPABASE_KEY ? '✓ ' + SUPABASE_KEY.substring(0,20)+'...' : '✗ MISSING',
+    },
+    tables: results
+  });
+});
+
+// ── Supabase keep-alive every 4 days ──
 const FOUR_DAYS_MS = 4 * 24 * 60 * 60 * 1000;
-
 async function keepSupabaseAlive() {
   try {
     const { data, error } = await supabase.from('trades').select('id').limit(1);
-    const status = error
-      ? 'error: ' + error.message
-      : 'ok — ' + (data ? data.length : 0) + ' row(s) checked';
-    console.log(`[${new Date().toISOString()}] Supabase keep-alive: ${status}`);
+    console.log(`[${new Date().toISOString()}] Keep-alive: ${error ? 'error - ' + error.message : 'ok'}`);
   } catch (e) {
-    console.log(`[${new Date().toISOString()}] Supabase keep-alive failed: ${e.message}`);
+    console.log(`[${new Date().toISOString()}] Keep-alive failed: ${e.message}`);
   }
 }
-
-// Run once immediately on startup, then every 4 days
 keepSupabaseAlive();
 setInterval(keepSupabaseAlive, FOUR_DAYS_MS);
 
@@ -91,7 +132,6 @@ app.get('/api/calendar/:year/:month', async (req, res) => {
     const { data: trades, error } = await supabase
       .from('trades').select('*').like('date', prefix + '%');
     if (error) throw error;
-
     const daily = {};
     trades.forEach(t => {
       const d = t.date;
@@ -105,13 +145,11 @@ app.get('/api/calendar/:year/:month', async (req, res) => {
       if (t.instrument && !daily[d].instruments.includes(t.instrument))
         daily[d].instruments.push(t.instrument);
     });
-
     const allPnl      = Object.values(daily).reduce((s,d) => s + d.pnl, 0);
     const tradeDays   = Object.keys(daily).length;
     const totalTrades = trades.length;
     const wins        = trades.filter(t => t.result === 'Win').length;
     const losses      = trades.filter(t => t.result === 'Loss').length;
-
     res.json({ daily, summary: { pnl: allPnl, tradeDays, totalTrades, wins, losses } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -124,7 +162,6 @@ app.get('/api/stats', async (req, res) => {
     const { data: trades, error } = await supabase
       .from('trades').select('*').order('date', { ascending: true });
     if (error) throw error;
-
     const now        = new Date();
     const thisMonth  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     const wins       = trades.filter(t => t.result === 'Win');
@@ -136,19 +173,17 @@ app.get('/api/stats', async (req, res) => {
     const grossLoss  = Math.abs(losses.reduce((s,t) => s + (t.pnl||0), 0));
     const pf         = grossLoss > 0 ? (grossWin/grossLoss).toFixed(2) : wins.length > 0 ? '∞' : null;
     const rTrades    = trades.filter(t => t.r);
-    const avgR       = rTrades.length ? (rTrades.reduce((s,t) => s+(t.r||0),0)/rTrades.length).toFixed(2) : null;
+    const avgR       = rTrades.length ? (rTrades.reduce((s,t)=>s+(t.r||0),0)/rTrades.length).toFixed(2) : null;
     const avgWin     = wins.length   ? grossWin  / wins.length   : null;
     const avgLoss    = losses.length ? grossLoss / losses.length : null;
     const bestTrade  = trades.length ? Math.max(...trades.map(t => t.pnl||0)) : null;
     const worstTrade = trades.length ? Math.min(...trades.map(t => t.pnl||0)) : null;
     const thisMonthCount = trades.filter(t => t.date && t.date.startsWith(thisMonth)).length;
-
     let cum = 0;
     const equityCurve = trades.map(t => {
       cum += (t.pnl || 0);
       return { date: t.date, value: +cum.toFixed(2) };
     });
-
     res.json({
       total, winRate, netPnl, wins: wins.length, losses: losses.length,
       be: trades.filter(t => t.result === 'Breakeven').length,
@@ -200,7 +235,7 @@ app.get('/{*path}', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 TradeFlow running on http://localhost:${PORT}`);
-  console.log(`📦 Supabase: ${process.env.SUPABASE_URL ? '✓ connected' : '✗ SUPABASE_URL missing'}`);
-  console.log(`🔒 Data keep-alive: pinging Supabase every 4 days automatically`);
+  console.log(`🚀 TradeFlow running on port ${PORT}`);
+  console.log(`📦 SUPABASE_URL: ${SUPABASE_URL ? '✓ ' + SUPABASE_URL : '✗ MISSING'}`);
+  console.log(`🔑 SUPABASE_KEY: ${SUPABASE_KEY ? '✓ set (' + SUPABASE_KEY.substring(0,15) + '...)' : '✗ MISSING'}`);
 });
