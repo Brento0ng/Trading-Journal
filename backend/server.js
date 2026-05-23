@@ -34,7 +34,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ── Health check — shows if everything is working ──
+// ── Health check ──
 app.get('/ping', async (req, res) => {
   let dbStatus = 'unknown';
   try {
@@ -52,7 +52,7 @@ app.get('/ping', async (req, res) => {
   });
 });
 
-// ── Debug endpoint — check exactly what's wrong ──
+// ── Debug endpoint ──
 app.get('/api/debug', async (req, res) => {
   const results = {};
   try {
